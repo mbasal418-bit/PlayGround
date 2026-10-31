@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#070b10" />
+  <meta name="description" content="IRONSIGHT — a procedural top-down house raid with 45° vision, static hostiles, and a tactical blur outside your sightline." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23070b10'/%3E%3Cpath d='M32 8v48M12 20l40 24M52 20L12 44' stroke='%23ffb45c' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%23ffb45c'/%3E%3C/svg%3E" />
+  <title>IRONSIGHT // House Raid</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game" aria-label="Ironsight house raid game"></canvas>
+
+    <div id="vignette" aria-hidden="true"></div>
+    <div id="grain" aria-hidden="true"></div>
+    <div id="damageFlash" aria-hidden="true"></div>
+    <div id="lowHealth" aria-hidden="true"></div>
+
+    <section id="hud" class="hidden" aria-live="polite">
+      <div class="hud-top">
+        <div class="mission-card hud-panel">
+          <div class="eyebrow"><span class="status-dot"></span> OPERATION BLACKOUT</div>
+          <h1>SAFEHOUSE <span id="houseNumber">07</span></h1>
+          <div class="mission-meta">
+            <span id="seedLabel">SEED 000000</span>
+            <span class="meta-sep"></span>
+            <span>45° VISUAL ARC</span>
+          </div>
+        </div>
+
+        <div class="compass-wrap">
+          <canvas id="compass" width="460" height="58"></canvas>
+          <div id="roomChip" class="room-chip">HALLWAY</div>
+        </div>
+
+        <div class="threat-wrap">
+          <div class="threat-card hud-panel">
+            <div class="threat-row">
+              <div>
+                <div class="eyebrow">HOSTILES</div>
+                <div class="threat-count"><span id="hostiles">10</span><small>LEFT</small></div>
+              </div>
+              <div class="threat-icon" aria-hidden="true">
+                <svg viewBox="0 0 32 32"><path d="M16 4c-4.2 0-7 2.9-7 7v2.2C6.2 14.7 4 17.9 4 21.5 4 25.6 7.4 29 11.5 29h9C24.6 29 28 25.6 28 21.5c0-3.6-2.2-6.8-5-8.3V11c0-4.1-2.8-7-7-7Zm-4.4 12h2.8v2.5h-2.8V16Zm8 0h2.8v2.5h-2.8V16ZM12 23h8v2h-8v-2Z"/></svg>
+              </div>
+            </div>
+            <canvas id="minimap" width="220" height="132"></canvas>
+            <div class="minimap-legend"><span class="legend-you"></span> YOU <span class="legend-clear"></span> CLEARED</div>
+          </div>
+          <div class="hud-buttons">
+            <button id="muteBtn" class="icon-btn" type="button" aria-label="Mute audio" title="Mute audio">
+              <svg class="icon-sound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5-1.5a6 6 0 0 1 0 9M19 5a10 10 0 0 1 0 14"/></svg>
+              <svg class="icon-muted" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm12 1 5 5m0-5-5 5"/></svg>
+            </button>
+            <button id="pauseBtn" class="icon-btn" type="button" aria-label="Pause game" title="Pause">
+              <svg viewBox="0 0 24 24"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-bottom">
+        <div class="vitals hud-panel">
+          <div class="vitals-head"><span class="eyebrow">OPERATOR</span><span id="healthValue">100</span></div>
+          <div class="bar health-bar"><i id="healthBar"></i></div>
+          <div class="bar armor-bar"><i id="armorBar"></i></div>
+          <div class="vitals-foot"><span>HEALTH</span><span id="armorValue">75 ARMOR</span></div>
+        </div>
+
+        <div id="toast" class="toast"></div>
+
+        <div class="weapon hud-panel">
+          <div class="weapon-head">
+            <div>
+              <div class="eyebrow">PRIMARY</div>
+              <div class="weapon-name">M4A1 <span>SUPPRESSED</span></div>
+            </div>
+            <div class="ammo"><span id="ammoMag">24</span><small id="ammoReserve">/ 144</small></div>
+          </div>
+          <div class="reload-bar"><i id="reloadBar"></i></div>
+          <div class="weapon-foot"><span id="fireMode">AUTO</span><span id="reloadHint">R TO RELOAD</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="startScreen" class="screen start-screen">
+      <div class="start-shell">
+        <div class="start-copy">
+          <div class="eyebrow start-eyebrow"><span class="status-dot"></span> TACTICAL HOUSE RAID // PROCEDURAL</div>
+          <h1 class="game-title">IRON<span>SIGHT</span></h1>
+          <p class="tagline">45 degrees of clarity.<br /><em>Everything else is a guess.</em></p>
+          <p class="brief">A safehouse is holding armed hostiles. They will not move. They will not surrender. Clear every room before they clear you.</p>
+
+          <div class="start-actions">
+            <button id="startBtn" class="primary-btn" type="button">
+              <span>Start Game</span>
+              <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>
+            </button>
+            <button id="newSeedBtn" class="ghost-btn" type="button">Generate New House</button>
+          </div>
+          <div class="start-hint desktop-hint">WASD move &nbsp;·&nbsp; Mouse aim &nbsp;·&nbsp; LMB fire &nbsp;·&nbsp; R reload &nbsp;·&nbsp; ESC pause</div>
+          <div class="start-hint touch-only">Left stick move &nbsp;·&nbsp; Right stick aim &amp; fire &nbsp;·&nbsp; Tap reload</div>
+        </div>
+
+        <div class="start-intel">
+          <div class="plan-card">
+            <div class="plan-head">
+              <div>
+                <div class="eyebrow">BUILDING INTEL</div>
+                <div class="plan-title" id="planTitle">SAFEHOUSE 07</div>
+              </div>
+              <div class="plan-badge">45°</div>
+            </div>
+            <canvas id="plan" width="520" height="350"></canvas>
+            <div class="plan-stats">
+              <div><strong id="planRooms">6</strong><span>ROOMS</span></div>
+              <div><strong id="planHalls">1</strong><span>HALLWAY</span></div>
+              <div><strong id="planHostiles">10</strong><span>HOSTILES</span></div>
+            </div>
+            <div class="plan-note"><span class="blink-dot"></span> LIVE FLOORPLAN · <span id="planSeed">SEED 000000</span></div>
+          </div>
+          <div class="controls-card">
+            <div class="control-row"><span class="keycap">WASD</span><span>Move quietly through the house</span></div>
+            <div class="control-row"><span class="keycap">MOUSE</span><span>Aim your 45° sightline</span></div>
+            <div class="control-row"><span class="keycap">LMB</span><span>Fire suppressed carbine</span></div>
+            <div class="control-row"><span class="keycap">R</span><span>Reload</span></div>
+            <div class="touch-only control-row"><span class="keycap">STICKS</span><span>Move left · aim &amp; fire right</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="start-footer"><span>IRONSIGHT FIELD PROTOCOL</span><span>VISION 45° · HEARING 360°</span><span>BUILD 1.0.0</span></div>
+    </section>
+
+    <section id="endScreen" class="screen end-screen hidden">
+      <div class="result-card">
+        <div id="resultKicker" class="eyebrow">MISSION COMPLETE</div>
+        <h2 id="resultTitle">SAFEHOUSE CLEARED</h2>
+        <p id="resultSub">All hostiles neutralized. The house is yours.</p>
+        <div class="result-stats">
+          <div><strong id="statKills">0</strong><span>HOSTILES</span></div>
+          <div><strong id="statAccuracy">0%</strong><span>ACCURACY</span></div>
+          <div><strong id="statTime">0:00</strong><span>CLEAR TIME</span></div>
+          <div><strong id="statDamage">0</strong><span>DAMAGE TAKEN</span></div>
+        </div>
+        <div class="result-actions">
+          <button id="retryBtn" class="primary-btn" type="button"><span>Raid Again</span><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>
+          <button id="newHouseBtn" class="ghost-btn" type="button">New House</button>
+        </div>
+        <div class="result-seed" id="resultSeed">SEED 000000</div>
+      </div>
+    </section>
+
+    <section id="pauseScreen" class="screen pause-screen hidden">
+      <div class="pause-card">
+        <div class="eyebrow">TACTICAL PAUSE</div>
+        <h2>HOLD POSITION</h2>
+        <p>The house is waiting.</p>
+        <div class="pause-actions">
+          <button id="resumeBtn" class="primary-btn" type="button"><span>Resume Raid</span><svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg></button>
+          <button id="pauseRestartBtn" class="ghost-btn" type="button">Restart House</button>
+          <button id="pauseNewBtn" class="ghost-btn" type="button">New House</button>
+        </div>
+        <div class="pause-hint desktop-hint">ESC / P TO RESUME</div>
+        <div class="pause-hint touch-only">TAP RESUME TO CONTINUE</div>
+      </div>
+    </section>
+
+    <div id="touchControls" class="touch-controls hidden" aria-hidden="true">
+      <div id="moveStick" class="stick move-stick"><div class="stick-ring"></div><div id="moveKnob" class="stick-knob"></div><span class="stick-label">MOVE</span></div>
+      <div id="aimStick" class="stick aim-stick"><div class="stick-ring"></div><div id="aimKnob" class="stick-knob"></div><span class="stick-label">AIM / FIRE</span></div>
+      <button id="touchReload" class="touch-btn reload-btn" type="button">RELOAD</button>
+      <button id="touchPause" class="touch-btn pause-touch-btn" type="button" aria-label="Pause">II</button>
+    </div>
+
+    <div id="rotateHint" class="rotate-hint hidden">Rotate your phone for a wider sightline</div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
